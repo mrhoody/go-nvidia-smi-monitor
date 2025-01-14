@@ -4,9 +4,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
-)
 
+	"github.com/joho/godotenv"
+)
 
 func main(){
 	var testData gpuUsageData
@@ -14,8 +16,15 @@ func main(){
 	testData.currentGPUMemoryUtilisation = "50%"
 	testData.GPUCapacityUtilisation = "50%"
 
-	for i := 0; i < 10; i++ {
-	appendToCSV("test.csv", testData)}
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	// get environment variables
+	configureNumericEnvVariable("SCAN_INTERVAL", 5)
+	configureNumericEnvVariable("SCAN_DURATION", 5)
+
 
 }
 
@@ -23,6 +32,23 @@ type gpuUsageData struct {
 	timeStamp string
 	currentGPUMemoryUtilisation string
 	GPUCapacityUtilisation string
+}
+
+func configureNumericEnvVariable(envVariableName string, fallBackValue int) int {
+
+	// check if environment variable exists
+	if os.Getenv(envVariableName) == "" {
+		log.Println("Environment variable ", envVariableName, " not set - using fallback value: ", fallBackValue)
+		return fallBackValue
+	}
+
+	if s, err := strconv.Atoi(os.Getenv(envVariableName)); err == nil {
+		log.Println(envVariableName, " = ", s)
+		return s
+	} else {
+		log.Println("Error converting ",envVariableName, " to int - using fallback value: ", fallBackValue)
+		return fallBackValue
+	}
 }
 
 func captureTerminalOutputFromCommand(command string) string {
@@ -45,15 +71,13 @@ func appendToCSV (filename string, data gpuUsageData) {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
 		// file does not exist
 		log.Println("File does not exist, creating a new file with filename: ", filename)
-		_, err := os.Create(filename)
-		if err != nil {
+		_, err := os.Create(filename); if err != nil {
 			log.Panic("Error creating file: ", err)
 		}
 	}
 
 	// append data to file
-	f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
-	if err != nil {
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, os.ModeAppend) ; if err != nil {
 		log.Panic("Error opening file: ", err)
 	}
 
@@ -67,5 +91,9 @@ func appendToCSV (filename string, data gpuUsageData) {
 	b.WriteString("\n")
 
 	// write to file
-	_, err = f.WriteString(b.String())
+
+	_, err = f.WriteString(b.String()); if err != nil {
+		log.Panic("Error writing to file: ", err)
+	}
+	log.Println("GPU usage data logged.")
 }
